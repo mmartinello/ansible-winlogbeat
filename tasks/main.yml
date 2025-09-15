@@ -1,3 +1,33 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# tasks file for mmartinello.winlogbeat
+# Fail if not Windows
+- name: Fail if not Windows
+  ansible.builtin.fail:
+    msg: "This role is only supported on Windows"
+  when: ansible_system != 'Windows'
+
+# Import variables
+- name: Gather OS system specific variables
+  ansible.builtin.include_vars: "{{ ansible_system }}.yml"
+
+- name: Gather Distribution specific variables
+  ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_system }}-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml"
+        - "{{ ansible_system }}-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+        - "{{ ansible_system }}-{{ ansible_os_family }}-{{ ansible_distribution }}.yml"
+        - "{{ ansible_system }}-{{ ansible_os_family }}.yml"
+        - "default.yml"
+      paths:
+        - vars
+
+# Install
+- name: Install Winlogbeat
+  ansible.builtin.include_tasks: install.yml
+  tags: ['install']
+
+# Configure
+- name: Configure Winlogbeat
+  ansible.builtin.include_tasks: configure.yml
+  tags: ['configure']

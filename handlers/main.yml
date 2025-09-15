@@ -1,3 +1,5 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# handlers file for mmartinello.winlogbeat
+- name: Restart Winlogbeat
+  ansible.windows.win_service:
+    name: winlogbeat
+    state: restarted

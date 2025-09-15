@@ -1,0 +1,53 @@
+---
+- name: Set Winlogbeat package name
+  ansible.builtin.set_fact:
+    pkg_name: winlogbeat-oss
+
+- name: Get all available versions from Chocolatey
+  ansible.windows.win_command: choco search {{ pkg_name }} --exact --all-versions --limit-output
+  register: choco_list
+  changed_when: false
+
+- name: Parse versions and pick latest major version {{ winlogbeat_major_version }}
+  vars:
+    # Da "winlogbeat-oss|8.13.4" → "8.13.4"
+    all_versions: "{{ choco_list.stdout_lines | map('regex_replace', '^.*\\|', '') | list }}"
+    # Tieni solo quelle della major richiesta (es. ^8\.)
+    major_regex: "^{{ winlogbeat_major_version }}\\."
+    only_major: "{{ all_versions | select('search', major_regex) | list }}"
+  ansible.builtin.set_fact:
+    target_version: "{{ (only_major | community.general.version_sort) | last | default(omit) }}"
+
+- name: Fail if no versions were found under major version {{ winlogbeat_major_version }}
+  ansible.builtin.fail:
+    msg: >-
+      No versions under major version {{ winlogbeat_major_version }} of {{ pkg_name }} found on Chocolatey.
+      Output: {{ choco_list.stdout | default('') }}
+  when: target_version is not defined
+
+- name: Show target version
+  ansible.builtin.debug:
+    msg: >-
+      {{ pkg_name }} target version is {{ target_version }},
+      going to {{ 'reinstall' if winlogbeat_reinstall else 'install' }} it ...
+
+- name: "Install Winlogbeat using Chocolatey, version: {{ target_version }}"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ pkg_name }}"
+    version: "{{ target_version }}"
+    state: "{{ package_state | default('present') }}"
+  notify: Restart winlogbeat on Windows
+
+- name: Set Winlogbeat path variables
+  ansible.builtin.set_fact:
+    win_conf_path: "C:\\Program\ Files\\Elastic\\Beats\\{{ target_version }}\\winlogbeat"
+
+- name: Debug win_conf_path
+  ansible.builtin.debug:
+    var: win_conf_path
+
+- name: Ensure Winlogbeat is started and enabled on boot
+  ansible.windows.win_service:
+    name: winlogbeat
+    state: started
+    start_mode: "{{ start_mode }}"

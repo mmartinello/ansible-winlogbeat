@@ -1,3 +1,69 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# defaults file for mmartinello.winlogbeat
+# Metricbeat major version to be installed
+winlogbeat_major_version: 8
+
+# Reinstall service if already installed
+winlogbeat_reinstall: false
+
+# Enable Metricbeat starting on boot
+winlogbeat_enable_on_boot: true
+
+# Event logs settings
+winlogbeat_event_logs:
+  - name: Application
+    ignore_older: 72h
+  - name: System
+  - name: Security
+  - name: ForwardedEvents
+    tags: [forwarded]
+  - name: Windows PowerShell
+    event_id: 400, 403, 600, 800
+  - name: Microsoft-Windows-PowerShell/Operational
+    event_id: 4103, 4104, 4105, 4106
+
+# Elasticsearch template settings (single line elements in dotted notation)
+winlogbeat_setup_template_settings:
+  index.number_of_shards: 1
+
+# The name of the shipper that publishes the network data. It can be used to group
+# all the transactions sent by a single shipper in the web interface.
+winlogbeat_name: "{{ ansible_hostname }}"
+
+# The tags of the shipper are included in their field with each
+# transaction published.
+winlogbeat_tags: []
+
+# Optional fields that you can specify to add additional information to the
+# output.
+winlogbeat_fields: []
+
+# Kibana host
+winlogbeat_kibana_host: "localhost:5601"
+
+# Kibana Space ID
+winlogbeat_kibana_space_id: ""
+
+# Elasticsearch output
+winlogbeat_elasticsearch_hosts: ['localhost:9200']
+winlogbeat_elasticsearch_preset: balanced # balanced, throughput, scale, latency, custom
+winlogbeat_elasticsearch_protocol:
+winlogbeat_elasticsearch_api_key:
+winlogbeat_elasticsearch_username:
+winlogbeat_elasticsearch_password:
+
+# Logstash output
+winlogbeat_logstash_output_enabled: false
+winlogbeat_logstash_hosts: ['localhost:5044']
+winlogbeat_logstash_certificate_authorities:
+winlogbeat_logstash_ssl_certificate_path:
+winlogbeat_logstash_ssl_key_path:
+
+# Logging level
+winlogbeat_logging_level: info
+
+# Logging selectors (only for debug level)
+winlogbeat_logging_selectors: []
+
+# Setup index and dashboards
+winlogbeat_setup_index: false
+winlogbeat_setup_dashboards: false

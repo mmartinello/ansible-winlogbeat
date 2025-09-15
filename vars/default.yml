@@ -1,0 +1,6 @@
+---
+# Windows service start mode: auto if enabled on boot, manual otherwise
+start_mode: "{{ 'auto' if winlogbeat_enable_on_boot | default(true) else 'manual' }}"
+
+# Package state: reinstalled if reinstall is enabled, present otherwise
+package_state: "{{ 'reinstalled' if winlogbeat_reinstall | default(false) else 'present' }}"
