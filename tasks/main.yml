@@ -3,11 +3,15 @@
 - name: Fail if not Windows
   ansible.builtin.fail:
     msg: "This role is only supported on Windows"
-  when: ansible_system != 'Windows'
+  when: ansible_system != 'Win32NT'
 
 # Import variables
 - name: Gather OS system specific variables
-  ansible.builtin.include_vars: "{{ ansible_system }}.yml"
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_system }}.yml"
+      skip: true
 
 - name: Gather Distribution specific variables
   ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
@@ -31,3 +35,9 @@
 - name: Configure Winlogbeat
   ansible.builtin.include_tasks: configure.yml
   tags: ['configure']
+
+- name: Ensure Winlogbeat is started and enabled on boot
+  ansible.windows.win_service:
+    name: winlogbeat
+    state: started
+    start_mode: "{{ _start_mode }}"

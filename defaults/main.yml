@@ -1,11 +1,11 @@
 ---
-# Metricbeat major version to be installed
+# Winlogbeat major version to be installed
 winlogbeat_major_version: 8
 
 # Reinstall service if already installed
 winlogbeat_reinstall: false
 
-# Enable Metricbeat starting on boot
+# Enable Winlogbeat starting on boot
 winlogbeat_enable_on_boot: true
 
 # Event logs settings
@@ -67,3 +67,6 @@ winlogbeat_logging_selectors: []
 # Setup index and dashboards
 winlogbeat_setup_index: false
 winlogbeat_setup_dashboards: false
+
+# Setup index lifecycle management (ILM)
+winlogbeat_setup_ilm_check_exists: true
