@@ -36,8 +36,7 @@
   ansible.builtin.include_tasks: configure.yml
   tags: ['configure']
 
-- name: Ensure Winlogbeat is started and enabled on boot
-  ansible.windows.win_service:
-    name: winlogbeat
-    state: started
-    start_mode: "{{ _start_mode }}"
+# Manage service
+- name: Manage Winlogbeat service
+  ansible.builtin.include_tasks: service.yml
+  tags: ['service']

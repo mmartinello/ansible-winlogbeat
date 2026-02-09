@@ -1,0 +1,6 @@
+---
+- name: Ensure Winlogbeat is started and enabled on boot
+  ansible.windows.win_service:
+    name: winlogbeat
+    state: started
+    start_mode: "{{ _start_mode }}"
