@@ -1,0 +1,74 @@
+---
+- name: Get Elastic versions list
+  ansible.builtin.uri:
+    url: https://artifacts-api.elastic.co/v1/versions
+    method: GET
+    return_content: true
+  delegate_to: localhost
+  run_once: true
+  register: elastic_versions_raw
+
+- name: Parse JSON response
+  ansible.builtin.set_fact:
+    elastic_versions_payload: >-
+      {{
+        (elastic_versions_raw.json
+          if (elastic_versions_raw.json is defined and elastic_versions_raw.json)
+          else (elastic_versions_raw.content | from_json))
+      }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Normalize major version
+  ansible.builtin.set_fact:
+    winlogbeat_major_version_int: "{{ (winlogbeat_major_version | string | regex_search('^\\d+')) | int }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Init filtered versions list
+  ansible.builtin.set_fact:
+    winlogbeat_versions_filtered: []
+  delegate_to: localhost
+  run_once: true
+
+- name: Accumulate stable versions for the requested major
+  ansible.builtin.set_fact:
+    winlogbeat_versions_filtered: "{{ winlogbeat_versions_filtered + [item] }}"
+  loop: "{{ elastic_versions_payload.versions }}"
+  when:
+    - "'SNAPSHOT' not in item"
+    - (item | regex_search('^' ~ (winlogbeat_major_version_int | string) ~ '\\.')) is not none
+  delegate_to: localhost
+  run_once: true
+
+- name: Fail if no versions are found for the requested major
+  ansible.builtin.fail:
+    msg: >-
+      No versions found for major {{ winlogbeat_major_version_int }}.
+      Esempio versioni viste: {{ (elastic_versions_payload.versions | default([]))[:10] }}
+  when: winlogbeat_versions_filtered | length == 0
+  delegate_to: localhost
+  run_once: true
+
+- name: Init tuple for sort
+  ansible.builtin.set_fact:
+    winlogbeat_versions_tuples: []
+  delegate_to: localhost
+  run_once: true
+
+- name: Build numeric tuples for sorting (x.y.z)
+  ansible.builtin.set_fact:
+    winlogbeat_versions_tuples: "{{ winlogbeat_versions_tuples + [{'v': item, 'k': (item.split('.') | map('int') | list)}] }}"
+  loop: "{{ winlogbeat_versions_filtered }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Sort and select the latest version
+  ansible.builtin.set_fact:
+    winlogbeat_version_resolved: "{{ (winlogbeat_versions_tuples | sort(attribute='k') | last).v }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Set winlogbeat_version on each host
+  ansible.builtin.set_fact:
+    winlogbeat_version: "{{ winlogbeat_version_resolved }}"

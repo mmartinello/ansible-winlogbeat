@@ -2,8 +2,15 @@
 # Winlogbeat major version to be installed
 winlogbeat_major_version: 8
 
+# Winlogbeat version to be installed
+# If not set, the latest stable version will be searched and installed
+winlogbeat_version: null
+
 # Reinstall service if already installed
 winlogbeat_reinstall: false
+
+# Upgrade service if already installed (alias for winlogbeat_reinstall)
+winlogbeat_upgrade: false
 
 # Enable Winlogbeat starting on boot
 winlogbeat_enable_on_boot: true
@@ -70,3 +77,9 @@ winlogbeat_setup_dashboards: false
 
 # Setup index lifecycle management (ILM)
 winlogbeat_setup_ilm_check_exists: true
+
+# MSI download URL
+winlogbeat_msi_download_url: "https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-{{ winlogbeat_version }}-windows-x86_64.msi"
+
+# Metricbeat service name
+winlogbeat_service_name: winlogbeat

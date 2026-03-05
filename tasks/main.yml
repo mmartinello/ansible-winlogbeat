@@ -2,29 +2,29 @@
 # Fail if not Windows
 - name: Fail if not Windows
   ansible.builtin.fail:
-    msg: "This role is only supported on Windows"
+    msg: "Winlogbeat is specifically designed for Windows"
   when: ansible_system != 'Win32NT'
 
 # Import variables
 - name: Gather OS system specific variables
-  ansible.builtin.include_vars: "{{ item }}"
-  with_first_found:
-    - files:
-        - "{{ ansible_system }}.yml"
-      skip: true
+  action: ansible.builtin.include_vars
+  args:
+    file: "{{ lookup('first_found',
+              [ansible_system ~ '.yml', 'default.yml'],
+              paths=[role_path ~ '/vars']) }}"
 
 - name: Gather Distribution specific variables
-  ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
-  vars:
-    params:
-      files:
-        - "{{ ansible_system }}-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml"
-        - "{{ ansible_system }}-{{ ansible_os_family }}-{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
-        - "{{ ansible_system }}-{{ ansible_os_family }}-{{ ansible_distribution }}.yml"
-        - "{{ ansible_system }}-{{ ansible_os_family }}.yml"
-        - "default.yml"
-      paths:
-        - vars
+  action: ansible.builtin.include_vars
+  args:
+    file: "{{ lookup('first_found',
+              [
+                ansible_system ~ '-' ~ ansible_os_family ~ '-' ~ ansible_distribution ~ '-' ~ ansible_distribution_version ~ '.yml',
+                ansible_system ~ '-' ~ ansible_os_family ~ '-' ~ ansible_distribution ~ '-' ~ ansible_distribution_major_version ~ '.yml',
+                ansible_system ~ '-' ~ ansible_os_family ~ '-' ~ ansible_distribution ~ '.yml',
+                ansible_system ~ '-' ~ ansible_os_family ~ '.yml',
+                'default.yml'
+              ],
+              paths=[role_path ~ '/vars']) }}"
 
 # Install
 - name: Install Winlogbeat

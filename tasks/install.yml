@@ -1,43 +1,26 @@
 ---
-- name: Set Winlogbeat package name
+- name: Get winlogbeat version
+  ansible.builtin.include_tasks: install-get-version.yml
+  when: not winlogbeat_version | default(false)
+
+- name: Set winlogbeat variables
   ansible.builtin.set_fact:
-    _pkg_name: winlogbeat-oss
+    _winlogbeat_msi_download_url: "{{ winlogbeat_msi_download_url.replace('{{ winlogbeat_version }}', winlogbeat_version) }}"
+    _winlogbeat_conf_path: "C:\\Program\ Files\\Elastic\\Beats\\{{ winlogbeat_version }}\\winlogbeat"
 
-- name: Get all available versions from Chocolatey
-  ansible.windows.win_command: choco search {{ _pkg_name }} --exact --all-versions --limit-output
-  register: _choco_list
-  changed_when: false
+- name: Check if winlogbeat service exists
+  ansible.windows.win_service_info:
+    name: winlogbeat
+  register: winlogbeat_service
+  failed_when: false
 
-- name: Parse versions and pick latest major version {{ winlogbeat_major_version }}
-  vars:
-    # Da "winlogbeat-oss|8.13.4" → "8.13.4"
-    _all_versions: "{{ _choco_list.stdout_lines | map('regex_replace', '^.*\\|', '') | list }}"
-    # Tieni solo quelle della major richiesta (es. ^8\.)
-    _major_regex: "^{{ winlogbeat_major_version }}\\."
-    _only_major: "{{ _all_versions | select('search', _major_regex) | list }}"
-  ansible.builtin.set_fact:
-    _target_version: "{{ (_only_major | community.general.version_sort) | last | default(omit) }}"
-
-- name: Fail if no versions were found under major version {{ winlogbeat_major_version }}
-  ansible.builtin.fail:
-    msg: >-
-      No versions under major version {{ winlogbeat_major_version }} of {{ _pkg_name }} found on Chocolatey.
-      Output: {{ _choco_list.stdout | default('') }}
-  when: _target_version is not defined
-
-- name: Show target version
+- name: Starting winlogbeat installation ...
   ansible.builtin.debug:
-    msg: >-
-      {{ _pkg_name }} target version is {{ _target_version }},
-      going to {{ 'reinstall' if winlogbeat_reinstall else 'install' }} it ...
+    msg: "Going to install winlogbeat from {{ _winlogbeat_msi_download_url }} ..."
 
-- name: "Install Winlogbeat using Chocolatey, version: {{ _target_version }}"
-  chocolatey.chocolatey.win_chocolatey:
-    name: "{{ _pkg_name }}"
-    version: "{{ _target_version }}"
-    state: "{{ _package_state | default('present') }}"
-  notify: Restart Winlogbeat
-
-- name: Set Winlogbeat path variables
-  ansible.builtin.set_fact:
-    _winlogbeat_conf_path: "C:\\Program\ Files\\Elastic\\Beats\\{{ _target_version }}\\winlogbeat"
+- name: Install winlogbeat on Windows
+  ansible.windows.win_package:
+    path: "{{ _winlogbeat_msi_download_url }}"
+    arguments: /qn /norestart
+  when: winlogbeat_service.services | length == 0 or winlogbeat_reinstall or winlogbeat_upgrade
+  notify: Restart winlogbeat on Windows
