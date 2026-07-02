@@ -1,26 +1,72 @@
 ---
-- name: Get Winlogbeat version
+- name: Check if Winlogbeat service exists
+  when: not winlogbeat_reinstall and not winlogbeat_upgrade
+  block:
+    - name: Get Winlogbeat service information
+      ansible.windows.win_service_info:
+        name: winlogbeat
+      register: winlogbeat_service
+      failed_when: false
+
+    - name: Extract installed Winlogbeat version
+      ansible.builtin.set_fact:
+        winlogbeat_installed_version: "{{ winlogbeat_service.services[0].path | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+') }}"
+      when:
+        - winlogbeat_service.exists
+        - winlogbeat_service.services | length > 0
+        - not winlogbeat_reinstall
+        - not winlogbeat_upgrade
+        - (winlogbeat_service.services[0].path | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+')) is not none
+
+- name: Get latest Winlogbeat version from available versions from Elastic repository
   ansible.builtin.include_tasks: install-get-version.yml
-  when: not winlogbeat_version | default(false)
+  vars:
+    elastic_service_name: winlogbeat
+    elastic_major_version: "{{ winlogbeat_major_version }}"
+    elastic_version_var_name: winlogbeat_latest_version
+  when:
+    - winlogbeat_reinstall or winlogbeat_upgrade or (not winlogbeat_service.exists and not winlogbeat_version | default(false))
+
+- name: Debug winlogbeat_service
+  ansible.builtin.debug:
+    msg: "Winlogbeat service variable: {{ winlogbeat_service }}"
+
+- name: Get Winlogbeat version from installed version
+  ansible.builtin.set_fact:
+    winlogbeat_version: "{{ winlogbeat_installed_version }}"
+  when:
+    - winlogbeat_service.exists | default(false)
+    - winlogbeat_service.services | length > 0
+    - winlogbeat_installed_version is defined
+    - not winlogbeat_reinstall
+    - not winlogbeat_upgrade
+
+- name: Get Winlogbeat version from latest version
+  ansible.builtin.set_fact:
+    winlogbeat_version: "{{ winlogbeat_latest_version }}"
+  when:
+    - winlogbeat_latest_version is defined
+    - not winlogbeat_version | default(false) or winlogbeat_reinstall or winlogbeat_upgrade
 
 - name: Set Winlogbeat variables
   ansible.builtin.set_fact:
     _winlogbeat_msi_download_url: "{{ winlogbeat_msi_download_url.replace('{{ winlogbeat_version }}', winlogbeat_version) }}"
-    _winlogbeat_conf_path: "C:\\Program\ Files\\Elastic\\Beats\\{{ winlogbeat_version }}\\winlogbeat"
+    _winlogbeat_win_conf_path: "C:\\Program Files\\Elastic\\Beats\\{{ winlogbeat_version }}\\winlogbeat"
+    _winlogbeat_win_modules_path: "C:\\Program Files\\Elastic\\Beats\\{{ winlogbeat_version }}\\winlogbeat\\modules.d"
 
-- name: Check if Wwinlogbeat service exists
-  ansible.windows.win_service_info:
-    name: winlogbeat
-  register: winlogbeat_service
-  failed_when: false
-
-- name: Starting Winlogbeat installation ...
+- name: Debug Winlogbeat variables
   ansible.builtin.debug:
-    msg: "Going to install Winlogbeat version {{ winlogbeat_version }} from {{ _winlogbeat_msi_download_url }} ..."
+    msg: "Winlogbeat variables: winlogbeat_version: {{ winlogbeat_version }}, msi_download_url: {{ _winlogbeat_msi_download_url }}, win_conf_path: {{ _winlogbeat_win_conf_path }}, win_modules_path: {{ _winlogbeat_win_modules_path }}"
 
 - name: Install Winlogbeat on Windows
-  ansible.windows.win_package:
-    path: "{{ _winlogbeat_msi_download_url }}"
-    arguments: /qn /norestart
-  when: winlogbeat_service.services | length == 0 or winlogbeat_reinstall or winlogbeat_upgrade
-  notify: Restart Winlogbeat
+  when: not winlogbeat_service.exists or winlogbeat_reinstall or winlogbeat_upgrade
+  block:
+    - name: Starting Winlogbeat installation ...
+      ansible.builtin.debug:
+        msg: "Downloading Winlogbeat version {{ winlogbeat_version }} MSI from {{ _winlogbeat_msi_download_url }} ..."
+
+    - name: Install Winlogbeat on Windows
+      ansible.windows.win_package:
+        path: "{{ _winlogbeat_msi_download_url }}"
+        arguments: /qn /norestart
+      notify: Restart Winlogbeat on Windows
