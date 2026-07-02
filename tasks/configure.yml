@@ -2,27 +2,27 @@
 - name: Configure Winlogbeat
   ansible.windows.win_template:
     src: templates/winlogbeat.yml.j2
-    dest: "{{ _winlogbeat_conf_path }}/winlogbeat.yml"
+    dest: "{{ _winlogbeat_win_conf_path }}/winlogbeat.yml"
   notify: Restart Winlogbeat
 
 - name: Setup Index and other Elasticsearch stuff
   ansible.windows.win_command:
     argv:
-      - "{{ _winlogbeat_conf_path }}\\winlogbeat.exe"
+      - "{{ _winlogbeat_win_conf_path }}\\winlogbeat.exe"
       - setup
       - -c
-      - "{{ _winlogbeat_conf_path }}\\winlogbeat.yml"
+      - "{{ _winlogbeat_win_conf_path }}\\winlogbeat.yml"
       - --index-management
-    chdir: "{{ _winlogbeat_conf_path }}"
+    chdir: "{{ _winlogbeat_win_conf_path }}"
   when: winlogbeat_setup_index
 
 - name: Setup Dashboards
   ansible.windows.win_command:
     argv:
-      - "{{ _winlogbeat_conf_path }}\\winlogbeat.exe"
+      - "{{ _winlogbeat_win_conf_path }}\\winlogbeat.exe"
       - setup
       - -c
-      - "{{ _winlogbeat_conf_path }}\\winlogbeat.yml"
+      - "{{ _winlogbeat_win_conf_path }}\\winlogbeat.yml"
       - --dashboards
-    chdir: "{{ _winlogbeat_conf_path }}"
+    chdir: "{{ _winlogbeat_win_conf_path }}"
   when: winlogbeat_setup_index
